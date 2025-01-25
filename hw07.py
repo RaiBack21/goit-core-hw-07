@@ -1,6 +1,105 @@
 from collections import UserDict
 from datetime import datetime, date, timedelta
 
+class Field:
+    def __init__(self, value):
+        self.value = value
+
+    def __str__(self):
+        return str(self.value)
+    
+class Name(Field):
+    def __init__(self, name):
+        super().__init__(name)
+
+class Phone(Field):
+    def __init__(self, phone):
+        if len(phone) == 10 and phone.isdigit():
+            super().__init__(phone)
+        else:
+            raise ValueError('Phone number is not valid.')
+        
+class Birthday(Field):
+    def __init__(self, value):
+        try:
+            datetime.strptime(value, "%d.%m.%Y")
+        except ValueError:
+            raise ValueError
+        else:
+            super().__init__(value)
+
+class Record:
+    def __init__(self, name):
+        self.name = Name(name)
+        self.phones = []
+        self.birthday = None
+
+    def add_birthday(self, birthday):
+        self.birthday = Birthday(birthday)
+
+    def add_phone(self, phone):
+        self.phones.append(Phone(phone))
+
+    def remove_phone(self, phone_number):
+        phone = self.find_phone(phone_number)
+        self.phones.remove(phone)
+
+    def edit_phone(self, old_phone, new_phone):
+        if self.find_phone(old_phone):
+            self.add_phone(new_phone)
+            self.remove_phone(old_phone)
+        else:
+            raise ValueError('Phone number is not valid.')
+
+    def find_phone(self, phone_number):
+        phone = list(filter(lambda phone: phone.value == phone_number, self.phones))
+        if phone:
+            return phone[0]
+        else:
+            return None
+
+    def __str__(self):
+        return f"Contact name: {self.name.value}, phones: {'; '.join(p.value for p in self.phones)}, bithday: {self.birthday}"
+
+class AddressBook(UserDict):
+    def add_record(self, record):
+        self.data[record.name.value] = record
+    
+    def find(self, name):
+        if name in self.data.keys():
+            return self.data[name]
+        else:
+            return None
+
+    def delete(self, name):
+        del self.data[name]
+
+    def get_upcoming_birthdays(self, days=7):
+        upcoming_birthdays = []
+        today = date.today()
+        users = self.data
+
+        for user in users.items():
+            try:
+                birthday = datetime.strptime(user[1].birthday.value, "%d.%m.%Y")
+            except AttributeError:
+                continue
+            birthday_this_year = birthday.replace(year=today.year).date()
+            if birthday_this_year < today:
+                birthday_this_year = birthday.replace(year=today.year + 1)
+
+            if 0 <= (birthday_this_year - today).days <= days:
+                birthday_this_year = adjust_for_weekend(birthday_this_year)
+                congratulation_date_str = date_to_string(birthday_this_year)
+                upcoming_birthdays.append({"name": user[1].name.value, "congratulation_date": congratulation_date_str})
+        return upcoming_birthdays
+
+    def __str__(self):
+        result = ''
+        for key, value in self.data.items():
+            result += f'{key} - {value}\n'
+        return result
+
 def input_error(func):
     def inner(*args, **kwargs):
         try:
@@ -106,101 +205,6 @@ def adjust_for_weekend(birthday):
     if birthday.weekday() >= 5:
         return find_next_weekday(birthday, 0)
     return birthday
-
-class Field:
-    def __init__(self, value):
-        self.value = value
-
-    def __str__(self):
-        return str(self.value)
-    
-class Name(Field):
-    def __init__(self, name):
-        super().__init__(name)
-
-class Phone(Field):
-    def __init__(self, phone):
-        if len(phone) == 10 and phone.isdigit():
-            super().__init__(phone)
-        else:
-            raise ValueError('Phone number is not valid.')
-        
-class Birthday(Field):
-    def __init__(self, value):
-        try:
-            self.value = datetime.strptime(value, "%d.%m.%Y")
-        except ValueError:
-            raise ValueError("Invalid date format. Use DD.MM.YYYY")
-
-class Record:
-    def __init__(self, name):
-        self.name = Name(name)
-        self.phones = []
-        self.birthday = None
-
-    def add_birthday(self, birthday):
-        self.birthday = Birthday(birthday)
-
-    def add_phone(self, phone):
-        self.phones.append(Phone(phone))
-
-    def remove_phone(self, phone_number):
-        phone = self.find_phone(phone_number)
-        self.phones.remove(phone)
-
-    def edit_phone(self, old_phone, new_phone):
-        if self.find_phone(old_phone):
-            self.add_phone(new_phone)
-            self.remove_phone(old_phone)
-        else:
-            raise ValueError('Phone number is not valid.')
-
-    def find_phone(self, phone_number):
-        phone = list(filter(lambda phone: phone.value == phone_number, self.phones))
-        if phone:
-            return phone[0]
-        else:
-            return None
-
-    def __str__(self):
-        return f"Contact name: {self.name.value}, phones: {'; '.join(p.value for p in self.phones)}"
-
-class AddressBook(UserDict):
-    def add_record(self, record):
-        self.data[record.name.value] = record
-    
-    def find(self, name):
-        if name in self.data.keys():
-            return self.data[name]
-        else:
-            return None
-
-    def delete(self, name):
-        del self.data[name]
-
-    def get_upcoming_birthdays(self, days=7):
-        upcoming_birthdays = []
-        today = date.today()
-        users = self.data
-
-        for user in users.items():
-            birthday = user[1].birthday.value
-            birthday_this_year = birthday.replace(year=today.year).date()
-            if birthday_this_year < today:
-                birthday_this_year = birthday.replace(year=today.year + 1)
-
-            if 0 <= (birthday_this_year - today).days <= days:
-                birthday_this_year = adjust_for_weekend(birthday_this_year)
-                congratulation_date_str = date_to_string(birthday_this_year)
-                upcoming_birthdays.append({"name": user[1].name.value, "congratulation_date": congratulation_date_str})
-        return upcoming_birthdays
-
-    def __str__(self):
-        result = ''
-        for key, value in self.data.items():
-            result += f'{key} - {value}\n'
-        return result
-
 
 def main():
     book = AddressBook()
